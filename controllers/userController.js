@@ -7,6 +7,7 @@ const Assignment = require('../models/Assignment');
 const QuizResult = require('../models/QuizResult');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
+const mongoose = require('mongoose');
 const { sendWelcomeEmail } = require('../utils/emailService');
 
 //importation des étudiants
@@ -14,38 +15,32 @@ async function importStudents(req, res) {
     if (!req.file) {
         return res.status(400).json({ message: 'Veuillez fournir un fichier' });
     }
+    const filePath = req.file.path;
     try {
-        //on recupere le fichier
-        const filePath = req.file.path;
         const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const lines = fileContent.split('\n');
-        //on parcourt les lignes
+        const lines = fileContent.split(/\r?\n/);
         for (const line of lines) {
             const cleanedLine = line.trim();
-            //on ignore les lignes vides
             if (!cleanedLine) continue;
-            const [email, firstName, lastName] = cleanedLine.split(',');
-            //on ignore la ligne d'en-tête
-            if (email === 'email') continue;
+            const [rawEmail, rawFirstName, rawLastName] = cleanedLine.split(',');
+            const email = (rawEmail || '').trim().toLowerCase();
+            const firstName = (rawFirstName || '').trim();
+            const lastName = (rawLastName || '').trim();
+            if (!email || email === 'email' || !firstName || !lastName) continue;
             const userExists = await User.findOne({ email });
-            //on ignore les étudiants déjà existants
             if (userExists) continue;
-            //on hash le mot de passe
             const salt = await bcrypt.genSalt(10);
-            //on définit le mot de passe par défaut de l'etudiant 
             const hashedPassword = await bcrypt.hash('CoreLab2026!', salt);
-            //on crée le nouvel étudiant
             const newStudent = new User({ email, password: hashedPassword, firstName, lastName, role: 'student' });
             await newStudent.save();
-            //envoie du mail de bienvenue
             await sendWelcomeEmail(email, firstName, 'CoreLab2026!');
         }
-        //on supprime le fichier
-        fs.unlinkSync(filePath);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         res.status(201).json({ message: "Importation des étudiants réussie !" });
 
     } catch (error) {
-        res.status(500).json({ message: "Erreur lors de l'importation", error: error.message });
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        res.status(500).json({ message: "Erreur lors de l'importation" });
     }
 }
 
@@ -151,7 +146,7 @@ async function updateLesson(req, res) {
     try {
         const lesson = await Lesson.findById(id);
         if (!lesson) {
-            if (req.file) fs.unlinkSync(req.file.path);
+            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             return res.status(404).json({ message: "Leçon introuvable." });
         }
         
@@ -168,8 +163,8 @@ async function updateLesson(req, res) {
         await lesson.save();
         res.status(200).json({ message: "Leçon mise à jour avec succès !", lesson });
     } catch (error) {
-        if (req.file) fs.unlinkSync(req.file.path);
-        res.status(500).json({ message: "Erreur lors de la mise à jour de la leçon.", error: error.message });
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        res.status(500).json({ message: "Erreur lors de la mise à jour de la leçon." });
     }
 }
 
@@ -287,57 +282,78 @@ async function assignCourse(req, res) {
     }
 }
 
+function sanitizeCsvCell(value) {
+    const str = String(value ?? '');
+    const neutralized = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+    return `"${neutralized.replace(/"/g, '""')}"`;
+}
+
 async function getQuizResults(req, res) {
     try {
         const { studentId, quizId } = req.query;
-        let filter = {};
-        
-        if (studentId) filter.studentId = studentId;
-        if (quizId) filter.quizId = quizId;
-        
+        const filter = {};
+
+        if (studentId) {
+            if (!mongoose.Types.ObjectId.isValid(studentId)) {
+                return res.status(400).json({ message: "Identifiant étudiant invalide." });
+            }
+            filter.studentId = studentId;
+        }
+        if (quizId) {
+            if (!mongoose.Types.ObjectId.isValid(quizId)) {
+                return res.status(400).json({ message: "Identifiant quiz invalide." });
+            }
+            filter.quizId = quizId;
+        }
+
         const results = await QuizResult.find(filter)
             .populate('studentId', 'firstName lastName email')
             .populate('quizId', 'title courseId');
-            
+
         res.status(200).json(results);
     } catch (error) {
-        res.status(500).json({ message: "Erreur lors de la récupération des résultats", error: error.message });
+        res.status(500).json({ message: "Erreur lors de la récupération des résultats" });
     }
 }
 
 async function exportQuizResultsCSV(req, res) {
     try {
         const { studentId, quizId } = req.query;
-        let filter = {};
-        
-        if (studentId) filter.studentId = studentId;
-        if (quizId) filter.quizId = quizId;
-        
+        const filter = {};
+
+        if (studentId) {
+            if (!mongoose.Types.ObjectId.isValid(studentId)) {
+                return res.status(400).json({ message: "Identifiant étudiant invalide." });
+            }
+            filter.studentId = studentId;
+        }
+        if (quizId) {
+            if (!mongoose.Types.ObjectId.isValid(quizId)) {
+                return res.status(400).json({ message: "Identifiant quiz invalide." });
+            }
+            filter.quizId = quizId;
+        }
+
         const results = await QuizResult.find(filter)
             .populate('studentId', 'firstName lastName email')
             .populate('quizId', 'title');
-            
-        // Génération CSV manuelle (sans librairie externe pour simplifier)
+
         let csv = 'Etudiant,Email,Quiz,Score,Reussi,Date\n';
-        
+
         results.forEach(r => {
             const studentName = r.studentId ? `${r.studentId.firstName} ${r.studentId.lastName}` : 'Inconnu';
             const email = r.studentId ? r.studentId.email : 'Inconnu';
             const quizTitle = r.quizId ? r.quizId.title : 'Inconnu';
             const date = r.createdAt ? r.createdAt.toISOString().split('T')[0] : '';
-            
-            // Échapper les virgules potentielles
-            const safeName = `"${studentName.replace(/"/g, '""')}"`;
-            const safeQuiz = `"${quizTitle.replace(/"/g, '""')}"`;
-            
-            csv += `${safeName},${email},${safeQuiz},${r.score},${r.passed ? 'Oui' : 'Non'},${date}\n`;
+
+            csv += `${sanitizeCsvCell(studentName)},${sanitizeCsvCell(email)},${sanitizeCsvCell(quizTitle)},${r.score},${r.passed ? 'Oui' : 'Non'},${date}\n`;
         });
-        
-        res.setHeader('Content-Type', 'text/csv');
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', 'attachment; filename="resultats_qcm.csv"');
         res.status(200).send(csv);
     } catch (error) {
-        res.status(500).json({ message: "Erreur lors de l'export des résultats", error: error.message });
+        res.status(500).json({ message: "Erreur lors de l'export des résultats" });
     }
 }
 

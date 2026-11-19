@@ -1,0 +1,33 @@
+{
+  "title": "QCM - Fondamentaux de la Sécurité Web",
+  "passingThreshold": 60,
+  "questions": [
+    {
+      "questionText": "Où doit être effectuée la validation des droits d'accès (contrôle de rôle / IDOR) ?",
+      "options": [
+        "Uniquement dans le frontend React",
+        "Toujours côté serveur sur chaque endpoint API",
+        "Dans le fichier CSS"
+      ],
+      "correctAnswerIndex": 1
+    },
+    {
+      "questionText": "Quel attribut HTML permet d'isoler du contenu HTML dans une iframe ?",
+      "options": [
+        "sandbox",
+        "unsafe",
+        "allow-all"
+      ],
+      "correctAnswerIndex": 0
+    },
+    {
+      "questionText": "Où doit être stockée la clé secrète JWT_SECRET ?",
+      "options": [
+        "En dur dans le code client",
+        "Dans un commentaire Git",
+        "Dans les variables d'environnement (.env non versionné)"
+      ],
+      "correctAnswerIndex": 2
+    }
+  ]
+}

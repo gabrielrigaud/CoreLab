@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import './StudentDashboard.css';
@@ -32,7 +32,7 @@ const LessonView = () => {
       await api.post(`/student/courses/${courseId}/lessons/${lessonId}/complete`);
       navigate(`/student/courses/${courseId}`);
     } catch (err) {
-      alert('Erreur lors de la validation de la leçon.');
+      setError(err.response?.data?.message || 'Erreur lors de la validation de la leçon.');
       setCompleting(false);
     }
   };
@@ -54,9 +54,12 @@ const LessonView = () => {
 
       <main className="bg-white padding-md border-radius-md shadow-md">
         {lesson.htmlContent ? (
-          <div 
-            className="lesson-content" 
-            dangerouslySetInnerHTML={{ __html: lesson.htmlContent }} 
+          <iframe
+            title={lesson.title || 'Contenu de la leçon'}
+            srcDoc={lesson.htmlContent}
+            sandbox=""
+            className="lesson-content"
+            style={{ width: '100%', minHeight: '500px', border: 'none', background: '#fff' }}
           />
         ) : (
           <div>

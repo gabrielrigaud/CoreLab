@@ -1,12 +1,12 @@
-// Middleware de validation
-function validate(zod) {
-    return function(req, res, next) {
-        //on verifie que le body est valide
+function validate(zodSchema) {
+    return function (req, res, next) {
         try {
-            zod.parse(req.body);
-            next();
-        }catch(error){
-            res.status(400).json({details: error.errors})
+            zodSchema.parse(req.body);
+            return next();
+        } catch (error) {
+            const issues = error.issues || error.errors || [];
+            const firstMessage = issues[0]?.message || 'Données invalides';
+            return res.status(400).json({ message: firstMessage, details: issues });
         }
     };
 }

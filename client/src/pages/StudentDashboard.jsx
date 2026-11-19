@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import CourseCard from '../components/CourseCard';
@@ -78,7 +78,9 @@ const StudentDashboard = () => {
     try {
       await api.put(`/student/notifications/${id}/read`);
       setNotifications(notifications.map(n => n._id === id ? { ...n, read: true } : n));
-    } catch (err) {}
+    } catch {
+      // ignore transient notification read error
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -109,19 +111,19 @@ const StudentDashboard = () => {
               style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', position: 'relative', top: '2px' }}
             >
               🔔
-              {unreadCount > 0 && <span style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--color-danger)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>{unreadCount}</span>}
+              {unreadCount > 0 && <span style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--danger, #e74c3c)', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>{unreadCount}</span>}
             </button>
             {showNotifications && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', width: '300px', zIndex: 100, maxHeight: '400px', overflowY: 'auto', boxShadow: 'var(--shadow-md)', marginTop: '10px' }}>
-                    <h3 style={{ padding: '1rem', margin: 0, borderBottom: '1px solid #e2e8f0', fontSize: '1rem', color: 'var(--color-text-main)' }}>Notifications</h3>
+                <div style={{ position: 'absolute', top: '100%', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', width: '300px', zIndex: 100, maxHeight: '400px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginTop: '10px' }}>
+                    <h3 style={{ padding: '1rem', margin: 0, borderBottom: '1px solid #e2e8f0', fontSize: '1rem', color: 'var(--text-primary, #1e293b)' }}>Notifications</h3>
                     {notifications.length === 0 ? (
-                        <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Aucune notification</div>
+                        <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary, #64748b)' }}>Aucune notification</div>
                     ) : (
                         notifications.map(n => (
-                            <div key={n._id} style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', background: n.read ? '#fff' : 'var(--color-primary-light)' }}>
-                                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-main)' }}>{n.message}</p>
+                            <div key={n._id} style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', background: n.read ? '#fff' : '#eff6ff' }}>
+                                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary, #1e293b)' }}>{n.message}</p>
                                 {!n.read && (
-                                    <button onClick={() => handleMarkAsRead(n._id)} style={{ fontSize: '0.8rem', marginTop: '0.5rem', background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: 0, fontWeight: '500' }}>
+                                    <button onClick={() => handleMarkAsRead(n._id)} style={{ fontSize: '0.8rem', marginTop: '0.5rem', background: 'none', border: 'none', color: 'var(--accent-primary, #4361ee)', cursor: 'pointer', padding: 0, fontWeight: '500' }}>
                                         Marquer comme lue
                                     </button>
                                 )}

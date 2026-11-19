@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 
 const ManageGrades = () => {
@@ -7,19 +7,18 @@ const ManageGrades = () => {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    fetchResults();
+    const loadResults = async () => {
+      try {
+        const response = await api.get('/admin/results');
+        setResults(response.data);
+      } catch {
+        // handled silently in empty state
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadResults();
   }, []);
-
-  const fetchResults = async () => {
-    try {
-      const response = await api.get('/admin/results');
-      setResults(response.data);
-    } catch (err) {
-      console.error('Erreur lors de la récupération des notes', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleExportCSV = async () => {
     setDownloading(true);
@@ -39,7 +38,7 @@ const ManageGrades = () => {
       // Nettoyage
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       alert('Erreur lors du téléchargement du CSV');
     } finally {
       setDownloading(false);

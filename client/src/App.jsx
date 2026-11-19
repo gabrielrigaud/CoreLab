@@ -1,4 +1,3 @@
-import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import StudentDashboard from './pages/StudentDashboard'
 import CourseDetails from './pages/CourseDetails'
@@ -23,7 +22,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-        <Route path="/first-login" element={<FirstLogin />} />
+        <Route path="/first-login" element={<ProtectedRoute allowFirstLogin={true}><FirstLogin /></ProtectedRoute>} />
         <Route path="/student/dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
         <Route path="/student/courses/:id" element={<ProtectedRoute><CourseDetails /></ProtectedRoute>} />
         <Route path="/student/courses/:courseId/lessons/:lessonId" element={<ProtectedRoute><LessonView /></ProtectedRoute>} />
@@ -31,12 +30,15 @@ function App() {
         
         {/* Routes Admin */}
         <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<ManageUsers />} />
           <Route path="courses" element={<ManageCourses />} />
           <Route path="courses/:id" element={<AdminCourseDetails />} />
           <Route path="grades" element={<ManageGrades />} />
         </Route>
+
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   )

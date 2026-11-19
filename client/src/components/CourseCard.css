@@ -59,6 +59,11 @@
   border-color: var(--danger);
 }
 
+.status-pending {
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
 .course-description {
   font-size: 14px;
   color: var(--text-secondary);

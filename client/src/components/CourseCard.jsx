@@ -1,11 +1,10 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProgressBar from './ProgressBar';
 import './CourseCard.css';
 
 const CourseCard = ({ course }) => {
   const navigate = useNavigate();
-  let statusText = '';
+  let statusText = 'À commencer';
   if (course.status === 'passed') statusText = 'Terminé';
   if (course.status === 'failed') statusText = 'Échoué';
   if (course.status === 'in-progress') statusText = 'En cours';

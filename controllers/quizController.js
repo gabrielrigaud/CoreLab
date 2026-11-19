@@ -38,6 +38,7 @@ async function importQuiz(req, res) {
                 correctAnswers: row.correctAnswers.split(',').map(Number)
             }));
         } else {
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
             return res.status(400).json({ message: "Format non supporté (seuls JSON et CSV sont acceptés)" });
         }
 
@@ -61,9 +62,10 @@ async function updateThreshold(req, res) {
         const { id } = req.params;
         const { threshold } = req.body;
         const quiz = await Quiz.findByIdAndUpdate(id, { passingThreshold: threshold }, { new: true });
+        if (!quiz) return res.status(404).json({ message: "Quiz introuvable." });
         res.status(200).json({ message: "Seuil mis à jour !", threshold: quiz.passingThreshold });
     } catch (error) {
-        res.status(500).json({ message: "Erreur lors de la mise à jour", error: error.message });
+        res.status(500).json({ message: "Erreur lors de la mise à jour" });
     }
 }
 
@@ -72,10 +74,15 @@ async function getQuiz(req, res) {
     try {
         const quiz = await Quiz.findById(req.params.id).lean();
         if (!quiz) return res.status(404).json({ message: "Quiz non trouvé" });
-        quiz.questions.forEach(q => delete q.correctAnswers);
+        if (Array.isArray(quiz.questions)) {
+            quiz.questions.forEach(q => {
+                delete q.correctAnswerIndex;
+                delete q.correctAnswers;
+            });
+        }
         res.status(200).json(quiz);
     } catch (error) {
-        res.status(500).json({ message: "Erreur", error: error.message });
+        res.status(500).json({ message: "Erreur" });
     }
 }
 

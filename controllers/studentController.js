@@ -162,39 +162,78 @@ async function getCourse(req, res) {
     }
 }
 
+async function findStudentAssignment(studentId, courseId) {
+    const cohorts = await Cohort.find({ students: studentId }).select('_id');
+    const cohortIds = cohorts.map(c => c._id);
+    return Assignment.findOne({
+        courseId,
+        $or: [
+            { assignedToUser: studentId },
+            { assignedToCohort: { $in: cohortIds } }
+        ]
+    });
+}
+
 async function completeLesson(req, res) {
     const { courseId, lessonId } = req.params;
     const studentId = req.user.id;
-    
+
+    if (!mongoose.Types.ObjectId.isValid(courseId) || !mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ message: "Identifiant invalide." });
+    }
+
     try {
+        const assignment = await findStudentAssignment(studentId, courseId);
+        if (!assignment) {
+            return res.status(403).json({ message: "Accès refusé à ce cours." });
+        }
+
+        const lesson = await Lesson.findOne({ _id: lessonId, courseId });
+        if (!lesson) {
+            return res.status(404).json({ message: "Leçon introuvable dans ce cours." });
+        }
+
         let progress = await Progress.findOne({ userId: studentId, courseId });
-        
         if (!progress) {
             progress = new Progress({ userId: studentId, courseId, completedLessons: [] });
         }
-        
-        if (!progress.completedLessons.includes(lessonId)) {
+
+        if (!progress.completedLessons.some(id => id.toString() === lessonId)) {
             progress.completedLessons.push(lessonId);
             await progress.save();
         }
-        
+
         res.status(200).json({ message: "Leçon marquée comme terminée.", progress });
     } catch (error) {
-        res.status(500).json({ message: "Erreur lors de la mise à jour de la progression", error: error.message });
+        res.status(500).json({ message: "Erreur lors de la mise à jour de la progression" });
     }
 }
 
 async function getQuiz(req, res) {
     const { quizId } = req.params;
-    
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+        return res.status(400).json({ message: "Identifiant de quiz invalide." });
+    }
+
     try {
-        const quiz = await Quiz.findById(quizId);
+        const quiz = await Quiz.findById(quizId).lean();
         if (!quiz) return res.status(404).json({ message: "Quiz introuvable" });
-        
-        // Optionnel : on pourrait filtrer les correctAnswerIndex pour ne pas tricher, mais on laisse simple pour l'instant
+
+        const assignment = await findStudentAssignment(req.user.id, quiz.courseId);
+        if (!assignment) {
+            return res.status(403).json({ message: "Accès refusé à ce quiz." });
+        }
+
+        if (Array.isArray(quiz.questions)) {
+            quiz.questions.forEach(q => {
+                delete q.correctAnswerIndex;
+                delete q.correctAnswers;
+            });
+        }
+
         res.status(200).json(quiz);
     } catch (error) {
-        res.status(500).json({ message: "Erreur lors de la récupération du quiz", error: error.message });
+        res.status(500).json({ message: "Erreur lors de la récupération du quiz" });
     }
 }
 
@@ -202,46 +241,56 @@ async function submitQuiz(req, res) {
     const { quizId } = req.params;
     const { answers } = req.body; // Array of { questionId, selectedIndex }
     const studentId = req.user.id;
-    
+
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+        return res.status(400).json({ message: "Identifiant de quiz invalide." });
+    }
     if (!answers || !Array.isArray(answers)) {
         return res.status(400).json({ message: "Veuillez fournir vos réponses au format correct." });
     }
-    
+
     try {
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: "Quiz introuvable" });
-        
+
+        const assignment = await findStudentAssignment(studentId, quiz.courseId);
+        if (!assignment) {
+            return res.status(403).json({ message: "Accès refusé à ce quiz." });
+        }
+
         let correctCount = 0;
         const totalQuestions = quiz.questions.length;
-        
-        // Evaluation des réponses
+
         answers.forEach(ans => {
-            const question = quiz.questions.id(ans.questionId); // nécessite que le schema ait une ID (par défaut oui en Mongoose)
-            if (question && question.correctAnswerIndex === ans.selectedIndex) {
+            const question = quiz.questions.id(ans.questionId);
+            if (!question) return;
+            if (typeof question.correctAnswerIndex === 'number' && question.correctAnswerIndex === ans.selectedIndex) {
+                correctCount++;
+            } else if (Array.isArray(question.correctAnswers) && question.correctAnswers.includes(ans.selectedIndex)) {
                 correctCount++;
             }
         });
-        
+
         const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
         const passed = score >= quiz.passingThreshold;
-        
+
         const quizResult = new QuizResult({
             quizId,
             studentId,
             score,
             passed
         });
-        
+
         await quizResult.save();
-        
-        res.status(201).json({ 
-            message: "Quiz soumis avec succès !", 
+
+        res.status(201).json({
+            message: "Quiz soumis avec succès !",
             result: quizResult,
             correctCount,
             totalQuestions
         });
     } catch (error) {
-        res.status(500).json({ message: "Erreur lors de la soumission du quiz", error: error.message });
+        res.status(500).json({ message: "Erreur lors de la soumission du quiz" });
     }
 }
 
@@ -250,16 +299,26 @@ async function getNotifications(req, res) {
         const notifications = await Notification.find({ userId: req.user.id }).sort('-createdAt');
         res.status(200).json(notifications);
     } catch (error) {
-        res.status(500).json({ message: "Erreur", error: error.message });
+        res.status(500).json({ message: "Erreur" });
     }
 }
 
 async function markNotificationAsRead(req, res) {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: "Identifiant invalide." });
+    }
     try {
-        await Notification.findByIdAndUpdate(req.params.id, { read: true });
+        const notification = await Notification.findOneAndUpdate(
+            { _id: req.params.id, userId: req.user.id },
+            { read: true },
+            { new: true }
+        );
+        if (!notification) {
+            return res.status(404).json({ message: "Notification introuvable." });
+        }
         res.status(200).json({ message: "Notification lue" });
     } catch (error) {
-        res.status(500).json({ message: "Erreur", error: error.message });
+        res.status(500).json({ message: "Erreur" });
     }
 }
 

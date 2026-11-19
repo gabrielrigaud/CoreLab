@@ -33,33 +33,48 @@ async function login(req, res) {
         //comparaison MDP
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) { return res.status(401).json({ message: "Identifiants incorrects" }); }
-        //creation token de co 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        res.status(200).json({ message: "Connexion réussie !", token, user: { id: user._id, firstName: user.firstName, lastName: user.lastName, role: user.role, firstLogin: user.firstLogin } });
+        const token = jwt.sign(
+            { id: user._id, role: user.role, firstLogin: user.firstLogin },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+        res.status(200).json({
+            message: "Connexion réussie !",
+            token,
+            user: { id: user._id, firstName: user.firstName, lastName: user.lastName, role: user.role, firstLogin: user.firstLogin }
+        });
 
     } catch (error) {
-        res.status(500).json({ message: "Erreur serveur lors de la connexion", error: error.message });
+        res.status(500).json({ message: "Erreur serveur lors de la connexion" });
 
     }
 }
 
 // Mettre à jour le mot de passe 
 async function updatePassword(req, res) {
-    //on recupere l'id de l'utilisateur
     const id = req.user.id;
-    //on recupere le nouveau mdp
     const { newPassword } = req.body;
     try {
-        //on recupere l'utilisateur
         const user = await User.findById(id);
-        //hachage du nouveau mdp
+        if (!user) {
+            return res.status(404).json({ message: "Utilisateur introuvable." });
+        }
         const salt = await bcrypt.genSalt(10);
         const hashedNewPassword = await bcrypt.hash(newPassword, salt);
-        //mise a jour du mdp
         user.password = hashedNewPassword;
         user.firstLogin = false;
         await user.save();
-        res.status(200).json({ message: "Mot de passe mis à jour avec succès. Première connexion validée !" });
+
+        const token = jwt.sign(
+            { id: user._id, role: user.role, firstLogin: false },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+        res.status(200).json({
+            message: "Mot de passe mis à jour avec succès. Première connexion validée !",
+            token,
+            user: { id: user._id, firstName: user.firstName, lastName: user.lastName, role: user.role, firstLogin: false }
+        });
     } catch (error) {
         res.status(500).json({ message: "Mot de passe non mis à jour." });
     }

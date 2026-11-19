@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import './StudentDashboard.css';
@@ -16,7 +16,7 @@ const CourseDetails = () => {
       try {
         const response = await api.get(`/student/courses/${id}`);
         setData(response.data);
-      } catch (err) {
+      } catch {
         setError('Impossible de charger les détails du cours.');
       } finally {
         setLoading(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../api/axios';
 
@@ -33,11 +33,13 @@ const AdminCourseDetails = () => {
   // Edit Threshold
   const [editingQuiz, setEditingQuiz] = useState(null);
   const [editThreshold, setEditThreshold] = useState(50);
-  const [updatingThreshold, setUpdatingThreshold] = useState(false);
 
-  useEffect(() => {
-    fetchCourseAndCohorts();
-  }, [id]);
+  // Edit Course
+  const [editingCourse, setEditingCourse] = useState(false);
+  const [editCourseTitle, setEditCourseTitle] = useState('');
+  const [editCourseDescription, setEditCourseDescription] = useState('');
+  const [updatingCourse, setUpdatingCourse] = useState(false);
+  const [updatingThreshold, setUpdatingThreshold] = useState(false);
 
   const fetchCourseAndCohorts = async () => {
     try {
@@ -47,12 +49,30 @@ const AdminCourseDetails = () => {
       ]);
       setCourse(courseRes.data);
       setCohorts(cohortsRes.data);
-    } catch (err) {
+    } catch {
       setMessage({ text: 'Erreur de chargement', type: 'error' });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const loadCourseAndCohorts = async () => {
+      try {
+        const [courseRes, cohortsRes] = await Promise.all([
+          api.get(`/admin/courses/${id}`),
+          api.get('/admin/cohorts')
+        ]);
+        setCourse(courseRes.data);
+        setCohorts(cohortsRes.data);
+      } catch {
+        setMessage({ text: 'Erreur de chargement', type: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadCourseAndCohorts();
+  }, [id]);
 
   const handleLessonUpload = async (e) => {
     e.preventDefault();
@@ -173,6 +193,30 @@ const AdminCourseDetails = () => {
     }
   };
 
+  const startEditCourse = () => {
+    setEditCourseTitle(course.title || '');
+    setEditCourseDescription(course.description || '');
+    setEditingCourse(true);
+  };
+
+  const handleUpdateCourse = async (e) => {
+    e.preventDefault();
+    setUpdatingCourse(true);
+    try {
+      const response = await api.put(`/admin/courses/${id}`, {
+        title: editCourseTitle,
+        description: editCourseDescription
+      });
+      setMessage({ text: response.data.message || 'Cours mis à jour !', type: 'success' });
+      setEditingCourse(false);
+      fetchCourseAndCohorts();
+    } catch (err) {
+      setMessage({ text: err.response?.data?.message || 'Erreur lors de la mise à jour du cours', type: 'error' });
+    } finally {
+      setUpdatingCourse(false);
+    }
+  };
+
   if (loading) return <div>Chargement...</div>;
   if (!course) return <div>Cours introuvable</div>;
 
@@ -182,7 +226,53 @@ const AdminCourseDetails = () => {
         &larr; Retour aux cours
       </Link>
       
-      <h1 className="admin-page-title">{course.title}</h1>
+      <div className="flex-between align-center margin-bottom-md">
+        <div>
+          <h1 className="admin-page-title margin-none">{course.title}</h1>
+          {course.description && <p className="text-muted margin-top-xs">{course.description}</p>}
+        </div>
+        {!editingCourse && (
+          <button type="button" onClick={startEditCourse} className="btn btn-primary btn-small">
+            Modifier le cours
+          </button>
+        )}
+      </div>
+
+      {editingCourse && (
+        <form onSubmit={handleUpdateCourse} className="bg-white padding-md border-radius-md shadow-sm margin-bottom-md">
+          <h2 className="card-title">Modifier les informations du cours</h2>
+          <div className="margin-bottom-sm">
+            <label className="input-label">Titre du cours</label>
+            <input
+              type="text"
+              value={editCourseTitle}
+              onChange={(e) => setEditCourseTitle(e.target.value)}
+              className="input-control"
+              minLength={3}
+              required
+            />
+          </div>
+          <div className="margin-bottom-md">
+            <label className="input-label">Description</label>
+            <textarea
+              value={editCourseDescription}
+              onChange={(e) => setEditCourseDescription(e.target.value)}
+              className="input-control"
+              style={{ minHeight: '90px', resize: 'vertical' }}
+              minLength={10}
+              required
+            />
+          </div>
+          <div className="flex-row gap-sm">
+            <button type="submit" disabled={updatingCourse} className="btn btn-success btn-small">
+              {updatingCourse ? 'Enregistrement...' : 'Enregistrer'}
+            </button>
+            <button type="button" onClick={() => setEditingCourse(false)} className="btn btn-secondary btn-small">
+              Annuler
+            </button>
+          </div>
+        </form>
+      )}
       
       {message.text && (
         <div className={`message-box ${message.type === 'error' ? 'message-error' : 'message-success'}`}>

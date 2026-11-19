@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Introduction à la Sécurité Web</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #1e293b;
+      line-height: 1.6;
+      max-width: 780px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    h1 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+    h2 { color: #334155; margin-top: 24px; }
+    .callout {
+      background: #f8fafc;
+      border-left: 4px solid #4361ee;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin: 16px 0;
+    }
+    code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Leçon 1 : Fondamentaux de la Sécurité Web</h1>
+  <p>
+    Lors du développement d'une application web moderne, la validation des entrées et le contrôle d'accès
+    côté serveur sont indispensables. Le client (navigateur) ne doit jamais être considéré comme fiable.
+  </p>
+
+  <h2>1. Authentification par JWT</h2>
+  <p>
+    Un JSON Web Token (<code>JWT</code>) permet d'authentifier les requêtes API sans session serveur.
+    Il doit toujours être signé avec un secret robuste stocké dans les variables d'environnement (<code>.env</code>).
+  </p>
+
+  <div class="callout">
+    <strong>Bon réflexe :</strong> Toujours vérifier le rôle et l'appartenance aux ressources (éviter les failles IDOR)
+    dans chaque contrôleur backend.
+  </div>
+
+  <h2>2. Protection contre les failles XSS</h2>
+  <p>
+    Le HTML externe ou saisi par un utilisateur ne doit jamais être injecté tel quel dans le DOM principal.
+    L'utilisation d'une <code>&lt;iframe sandbox=""&gt;</code> ou d'un assainisseur strict permet d'isoler le contenu.
+  </p>
+</body>
+</html>

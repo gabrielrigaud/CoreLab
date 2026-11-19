@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 
 const ManageUsers = () => {
@@ -13,17 +13,12 @@ const ManageUsers = () => {
   // Pour l'ajout d'un étudiant à une cohorte : { cohortId: studentId }
   const [selectedStudentForCohort, setSelectedStudentForCohort] = useState({});
 
-  useEffect(() => {
-    fetchCohorts();
-    fetchStudents();
-  }, []);
-
   const fetchCohorts = async () => {
     try {
       const response = await api.get('/admin/cohorts');
       setCohorts(response.data);
-    } catch (error) {
-      console.error('Erreur lors de la récupération des cohortes', error);
+    } catch {
+      setMessage({ text: 'Erreur lors de la récupération des cohortes', type: 'error' });
     }
   };
 
@@ -31,10 +26,26 @@ const ManageUsers = () => {
     try {
       const response = await api.get('/admin/students');
       setStudents(response.data);
-    } catch (error) {
-      console.error('Erreur étudiants', error);
+    } catch {
+      setMessage({ text: 'Erreur lors de la récupération des étudiants', type: 'error' });
     }
   };
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const [cohortsRes, studentsRes] = await Promise.all([
+          api.get('/admin/cohorts'),
+          api.get('/admin/students')
+        ]);
+        setCohorts(cohortsRes.data);
+        setStudents(studentsRes.data);
+      } catch {
+        setMessage({ text: 'Erreur lors du chargement des données.', type: 'error' });
+      }
+    };
+    loadInitialData();
+  }, []);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -57,8 +68,8 @@ const ManageUsers = () => {
       });
       setMessage({ text: response.data.message || 'Import réussi !', type: 'success' });
       setFile(null);
-      // Reset input
       document.getElementById('csvFile').value = '';
+      fetchStudents();
     } catch (err) {
       setMessage({ text: err.response?.data?.message || 'Erreur lors de l\'import', type: 'error' });
     } finally {
@@ -76,7 +87,7 @@ const ManageUsers = () => {
       fetchCohorts();
       setMessage({ text: 'Cohorte créée avec succès', type: 'success' });
     } catch (err) {
-      setMessage({ text: 'Erreur lors de la création de la cohorte', type: 'error' });
+      setMessage({ text: err.response?.data?.message || 'Erreur lors de la création de la cohorte', type: 'error' });
     }
   };
 
@@ -111,7 +122,7 @@ const ManageUsers = () => {
             Importer des étudiants
           </h2>
           <p className="text-muted margin-bottom-md">
-            Uploadez un fichier CSV contenant au minimum les colonnes <code>firstName</code>, <code>lastName</code> et <code>email</code>.
+            Uploadez un fichier CSV au format <code>email,firstName,lastName</code>.
           </p>
 
           <form onSubmit={handleUpload}>

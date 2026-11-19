@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 
@@ -7,26 +7,36 @@ const ManageCourses = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    fetchCourses();
-  }, []);
 
   const fetchCourses = async () => {
     try {
       const response = await api.get('/admin/courses');
       setCourses(response.data);
-    } catch (err) {
-      console.error('Erreur lors de la récupération des cours', err);
+    } catch {
+      setError('Erreur lors de la récupération des cours.');
     }
   };
+
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        const response = await api.get('/admin/courses');
+        setCourses(response.data);
+      } catch {
+        setError('Erreur lors de la récupération des cours.');
+      }
+    };
+    loadCourses();
+  }, []);
 
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     if (!newTitle) return;
 
     setLoading(true);
+    setError('');
     try {
       await api.post('/admin/courses', {
         title: newTitle,
@@ -36,7 +46,7 @@ const ManageCourses = () => {
       setNewDescription('');
       fetchCourses();
     } catch (err) {
-      alert('Erreur lors de la création du cours');
+      setError(err.response?.data?.message || 'Erreur lors de la création du cours.');
     } finally {
       setLoading(false);
     }
@@ -45,6 +55,8 @@ const ManageCourses = () => {
   return (
     <div>
       <h1 className="admin-page-title">Cours & Contenus</h1>
+
+      {error && <div className="message-box message-error">{error}</div>}
       
       <div className="grid-1-2">
         {/* Créer un cours */}
@@ -61,6 +73,7 @@ const ManageCourses = () => {
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 className="input-control"
+                minLength={3}
                 required
               />
             </div>
@@ -71,6 +84,8 @@ const ManageCourses = () => {
                 onChange={(e) => setNewDescription(e.target.value)}
                 className="input-control"
                 style={{ minHeight: '100px', resize: 'none' }}
+                minLength={10}
+                required
               />
             </div>
             

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import './Login.css';
@@ -28,12 +28,22 @@ const FirstLogin = () => {
     setLoading(true);
 
     try {
-      await api.post('/auth/updatePassword', {
+      const response = await api.post('/auth/updatePassword', {
         newPassword
       });
 
-      // Mot de passe changé avec succès
-      navigate('/student/dashboard');
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+
+      if (response.data.user?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur lors du changement de mot de passe.');
     } finally {
